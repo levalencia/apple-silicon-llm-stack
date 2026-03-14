@@ -1,0 +1,2 @@
+/usr/bin/ar qc libinference_metal.a CMakeFiles/inference_metal.dir/metal/device.mm.o CMakeFiles/inference_metal.dir/metal/compute_pipeline.mm.o CMakeFiles/inference_metal.dir/metal/buffer_pool.mm.o
+/usr/bin/ranlib libinference_metal.a

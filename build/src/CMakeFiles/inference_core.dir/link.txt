@@ -1,0 +1,2 @@
+/usr/bin/ar qc libinference_core.a CMakeFiles/inference_core.dir/core/engine.cpp.o CMakeFiles/inference_core.dir/core/model_loader.cpp.o CMakeFiles/inference_core.dir/core/sampler.cpp.o
+/usr/bin/ranlib libinference_core.a
