@@ -6,16 +6,21 @@ Production-grade fine-tuning repository for Apple Silicon using the MLX framewor
 
 MLX Tuner provides a modular, testable architecture for fine-tuning large language models on Apple Silicon GPUs. Designed for 24GB M4 Pro unified memory with support for models up to 1.1B parameters.
 
-## Features
+## Features & Concepts (GenAI Developer's Glossary)
 
-| Feature | Description |
+If you are coming from a high-level API background (e.g., using OpenAI endpoints or HuggingFace `pipeline()`), here is a simple translation of the low-level machine learning concepts used in this repository:
+
+| Feature/Concept | Simple Explanation |
 |---------|-------------|
-| **RSLoRA** | Rank-Stabilized LoRA with configurable rank, alpha, dropout |
-| **QLoRA** | Quantized LoRA for memory-efficient training |
-| **GGUF Export** | Convert fine-tuned models to GGUF format |
-| **Protocol-based DI** | Full dependency injection for testability |
-| **Structured Logging** | JSON logging for production, console for dev |
-| **Type Safety** | Full type hints with pyright strict mode |
+| **LoRA** | **Low-Rank Adaptation.** Normally, fine-tuning an LLM means changing billions of numbers (weights). This requires massive GPU memory. LoRA "freezes" the original brain and just adds a tiny "sticky note" (a small matrix) on the side to learn new information. It reduces memory usage by 99%. |
+| **LoRA Rank ($r$)** | The "size" of the sticky note. A rank of `8` means it's a small note (fast, low memory, but learns less complex patterns). A rank of `64` means a bigger note. |
+| **LoRA Alpha ($\alpha$)** | A scaling factor (like a volume knob). It dictates how loudly the new "sticky note" overrides the original, frozen model weights. |
+| **Dropout** | A trick to prevent the model from memorizing the training data. During training, it randomly "turns off" (drops out) a percentage of neurons, forcing the model to learn robust patterns rather than relying on a single memorized path. |
+| **RSLoRA** | **Rank-Stabilized LoRA.** A mathematical tweak to standard LoRA. Normally, if you increase the Rank (the sticky note size) too much, the math blows up and ruins the model. RSLoRA fixes the math so you can use massive Ranks safely. |
+| **Quantization** | Think of this as compressing a `.wav` audio file into an `.mp3`. It squashes 16-bit or 32-bit floating-point numbers into 8-bit or 4-bit numbers. It loses a tiny fraction of accuracy but allows massive models to run on consumer hardware. |
+| **QLoRA** | **Quantized LoRA.** The ultimate memory hack: You "zip" (Quantize) the base model so it fits in RAM, and then you train using the tiny LoRA "sticky notes". |
+| **GGUF Export** | GGUF is a file format (like `.zip` or `.mp4`) specifically for LLMs. It packs the model weights, tokenizer, and architecture into a single file that is highly optimized to be loaded quickly by C++ inference engines (like `llama.cpp` or our `metal-inference-core`). |
+| **Protocol-based DI** | **Dependency Injection via Python Protocols.** Instead of using rigid base classes, we use Python's `typing.Protocol` (duck-typing). It simply means: "I don't care what object you pass to my function, as long as it has a `.load()` method." It makes writing unit tests extremely easy. |
 
 ## Quick Start
 
@@ -33,7 +38,17 @@ make fuse
 make convert
 ```
 
-## Architecture
+## Architecture Explained
+
+For a GenAI software engineer, here is how the data flows through this system:
+
+1. **Input / Config Layer:** You type `make train`. The system reads the `config.py` file, which uses `pydantic-settings` to securely load environment variables (like batch size and LoRA rank).
+2. **Core Modules (The Business Logic):** 
+   - `data/loaders.py` grabs your raw text data (JSONL) and tokenizes it.
+   - `model/loader.py` downloads the base model (e.g., Llama 3) from HuggingFace.
+   - `training/trainer.py` loops over your data, calculates how wrong the model is (the "loss"), and updates the LoRA weights (`lora.py`) to fix the mistakes.
+3. **MLX Backend (The GPU Engine):** Apple's `mlx` framework does all the heavy math. Because of Unified Memory, it does this directly on the Apple Silicon GPU without needing slow memory copies.
+4. **Convert Layer:** Once training is done, `convert/gguf_converter.py` squashes (quantizes) the model and saves it as a `.gguf` file so the C++ engine can run it.
 
 ```mermaid
 graph TB
