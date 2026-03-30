@@ -119,6 +119,10 @@ private:
 
 Wraps Metal device and command queue:
 
+> **IMPORTANT: Understanding the Metal Backend (Python/CUDA Analogy)**
+> - Think of **Metal** as Apple's proprietary version of NVIDIA's CUDA. It gives us raw, low-level access to the GPU shader cores.
+> - Think of **Objective-C++ (`.mm`)** as the equivalent of `pybind11` or `ctypes` in Python. Because Apple's native APIs are written in Objective-C, we compile these specific files as Objective-C++ to allow our standard, fast C++20 code to natively talk to the Apple GPU without performance-killing workarounds.
+
 ```mermaid
 graph TB
     A[Create Command Queue] --> B[Create Library]
@@ -134,8 +138,9 @@ graph TB
 
 Manages GPU memory allocation:
 
-> **IMPORTANT: Apple Silicon Unified Memory Architecture (UMA)**
-> By utilizing `MTLResourceStorageModeShared`, the Buffer Pool allocates memory that is symmetrically visible to both the CPU and the Apple Silicon GPU. This means we achieve true zero-copy inference: no slow PCIe bus transfers occur between host RAM and device VRAM, allowing for incredibly high throughput and optimal power efficiency.
+> **IMPORTANT: Apple Silicon Unified Memory Architecture (UMA) & Memory Pooling**
+> - In Python, the Garbage Collector handles memory for you. But on a GPU, allocating and freeing memory on-the-fly inside a tight training loop is incredibly slow. The `Buffer Pool` pre-allocates massive chunks of GPU memory upfront and manually slices them up for the KV-Cache and tensors.
+> - By utilizing `MTLResourceStorageModeShared`, the Buffer Pool allocates memory that is symmetrically visible to both the CPU and the Apple Silicon GPU. This means we achieve true zero-copy inference: no slow PCIe bus transfers occur between host RAM and device VRAM, allowing for incredibly high throughput and optimal power efficiency.
 
 ```cpp
 class BufferPool {
