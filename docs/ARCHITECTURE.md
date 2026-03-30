@@ -83,6 +83,12 @@ def load_model(name: str, lazy_load: bool = False) -> Model:
 
 Implements LoRA fine-tuning:
 
+> **IMPORTANT: MLX and Hardware Awareness**
+> MLX utilizes lazy evaluation and arrays strictly mapped to Apple's Unified Memory Architecture (UMA). This allows PyTorch-like semantics but with highly optimized, zero-copy interactions on Apple Silicon.
+> 
+> **LoRA Mathematical Formulation**:
+> The `training/lora.py` module applies standard Low-Rank Adaptation (LoRA) where the learned weight update is `ΔW = B(A(x)) * (alpha / rank)`. We must be careful to avoid mutating this established scaling logic, as external frameworks and PyTest expect `alpha / rank` scaling, *not* RSLoRA's `alpha / sqrt(rank)` variation.
+
 ```mermaid
 graph LR
     A[Input Data] --> B[Tokenize]
