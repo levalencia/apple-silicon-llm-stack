@@ -1,1 +1,0 @@
-/usr/bin/c++ -g -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/unit_tests.dir/unit/main.cpp.o -o unit_tests  ../src/libinference_core.a ../src/libinference_metal.a ../src/libinference_core.a ../_deps/spdlog-build/libspdlogd.a -framework Metal -framework Foundation -framework MetalPerformanceShaders

@@ -51,6 +51,12 @@ private:
 
 extern "C" {
 
+// IMPORTANT (C-API / Opaque Pointer Idiom):
+// We expose a pure C API using opaque pointers (engine_handle_t) to cross the ABI boundary.
+// This is an application of the Pimpl (Pointer to Implementation) idiom tailored for FFI.
+// It ensures that our Go backend (via CGO) does not need to know the memory layout or
+// C++ ABI specifics of InferenceEngine, ensuring safe polyglot interoperability.
+
 engine_status_t engine_create(engine_handle_t* ctx, const engine_config_t* config) {
     if (!ctx || !config) {
         return ENGINE_ERROR_INVALID_ARG;

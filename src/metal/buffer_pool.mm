@@ -6,6 +6,11 @@ namespace metal_inference {
 
 class MetalBuffer {
 public:
+    // IMPORTANT (Apple Silicon UMA):
+    // Apple Silicon uses a Unified Memory Architecture (UMA). 
+    // By using MTLResourceStorageModeShared, we map the exact same physical memory
+    // into both the CPU and GPU address spaces. This enables true zero-copy
+    // inference without expensive PCIe bus transfers between host and device RAM.
     MetalBuffer(id<MTLDevice> device, size_t size) 
         : buffer_([device newBufferWithLength:size 
                  options:MTLResourceStorageModeShared])
