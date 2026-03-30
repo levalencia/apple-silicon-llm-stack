@@ -86,8 +86,11 @@ Implements LoRA fine-tuning:
 > **IMPORTANT: MLX and Hardware Awareness**
 > MLX utilizes lazy evaluation and arrays strictly mapped to Apple's Unified Memory Architecture (UMA). This allows PyTorch-like semantics but with highly optimized, zero-copy interactions on Apple Silicon.
 > 
-> **LoRA Mathematical Formulation**:
-> The `training/lora.py` module applies standard Low-Rank Adaptation (LoRA) where the learned weight update is `ΔW = B(A(x)) * (alpha / rank)`. We must be careful to avoid mutating this established scaling logic, as external frameworks and PyTest expect `alpha / rank` scaling, *not* RSLoRA's `alpha / sqrt(rank)` variation.
+> **LoRA for GenAI Developers (The Math & Intuition)**:
+> If you are used to calling `.train()` in PyTorch, here is what `training/lora.py` is actually doing under the hood: Standard fine-tuning updates a massive dense layer, say $10,000 \times 10,000$ (100 million parameters). **LoRA (Low-Rank Adaptation)** freezes that big matrix. Instead, it adds two tiny matrices: an $A$ matrix ($10,000 \times 8$) and a $B$ matrix ($8 \times 10,000$).
+> - You only train these $160,000$ parameters (a 99.8% reduction in memory overhead).
+> - During inference, you multiply $A \times B$ to yield a $10,000 \times 10,000$ matrix update, which is then cleanly added to the original frozen weights.
+> - The update is mathematically scaled by the formula `alpha / rank`. The tests in this repo strictly assert this standard scaling. (Note: RSLoRA would use `alpha / sqrt(rank)`, but we maintain the standard variant to satisfy existing integration tests).
 
 ```mermaid
 graph LR
