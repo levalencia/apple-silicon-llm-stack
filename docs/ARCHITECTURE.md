@@ -8,6 +8,7 @@ Metal Inference Core follows a layered architecture with clear separation betwee
 ┌─────────────────────────────────────────────────────────────┐
 │                    CLI / C-API Layer                        │
 │                   (tools/main.cpp)                          │
+│     * Exposes Opaque Pointers (Pimpl Idiom) for FFI *       │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -132,6 +133,9 @@ graph TB
 ### Buffer Pool (`metal/buffer_pool.mm`)
 
 Manages GPU memory allocation:
+
+> **IMPORTANT: Apple Silicon Unified Memory Architecture (UMA)**
+> By utilizing `MTLResourceStorageModeShared`, the Buffer Pool allocates memory that is symmetrically visible to both the CPU and the Apple Silicon GPU. This means we achieve true zero-copy inference: no slow PCIe bus transfers occur between host RAM and device VRAM, allowing for incredibly high throughput and optimal power efficiency.
 
 ```cpp
 class BufferPool {
