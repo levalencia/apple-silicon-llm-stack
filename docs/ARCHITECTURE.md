@@ -131,6 +131,9 @@ func Chat(engine *Engine) http.HandlerFunc {
 
 Go to C++ interop:
 
+> **IMPORTANT: CGO and Memory Management**
+> Go's garbage collector cannot manage memory allocated on the C/C++ heap. The `ptr` field in our `Engine` wrapper holds an opaque C pointer (`engine_handle_t`, implementing the Pimpl idiom) to the underlying C++ inference engine. We strictly manage memory lifecycles by requiring a manual `Destroy()` call (which invokes C++'s `delete` via the C-API) to prevent memory leaks when crossing the ABI boundary.
+
 ```go
 // #include "metal_inference/engine.h"
 import "C"
