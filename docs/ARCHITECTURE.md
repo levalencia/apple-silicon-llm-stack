@@ -131,8 +131,10 @@ func Chat(engine *Engine) http.HandlerFunc {
 
 Go to C++ interop:
 
-> **IMPORTANT: CGO and Memory Management**
-> Go's garbage collector cannot manage memory allocated on the C/C++ heap. The `ptr` field in our `Engine` wrapper holds an opaque C pointer (`engine_handle_t`, implementing the Pimpl idiom) to the underlying C++ inference engine. We strictly manage memory lifecycles by requiring a manual `Destroy()` call (which invokes C++'s `delete` via the C-API) to prevent memory leaks when crossing the ABI boundary.
+> **IMPORTANT: CGO and Manual Memory Management (Python GC Analogy)**
+> Go has a garbage collector, much like Python. However, Go's GC cannot "see" into the C++ engine's memory space. 
+> Imagine using Python's `ctypes` to allocate a 2GB array in a C library. If the Python object goes out of scope, the GC deletes the Python wrapper, but that 2GB in C stays locked up forever—a massive memory leak.
+> To prevent this, the `ptr` field in our `Engine` wrapper holds an "Opaque C Pointer" (`engine_handle_t`, the Pimpl idiom) to the underlying C++ instance. We must strictly enforce a manual `Destroy()` method call in Go (which reaches across the bridge to invoke C++'s `delete` instruction) before the Go object is garbage collected.
 
 ```go
 // #include "metal_inference/engine.h"
