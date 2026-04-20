@@ -17,7 +17,14 @@ help:
 
 install:
 	@echo "Installing dependencies..."
-	cd ../AdvancedLLMApp && source .venv/bin/activate && pip install -e .
+ifneq ($(wildcard .venv),)
+	@echo "Using existing .venv"
+	.venv/bin/pip install -e .
+else
+	@echo "Creating venv..."
+	python3 -m venv .venv && .venv/bin/pip install -e .
+endif
+	@echo "Note: In zsh, use: pip install -e \".[dev]\""
 
 fmt:
 	@echo "Formatting code..."
@@ -37,17 +44,19 @@ test-cov:
 	@echo "Running tests with coverage..."
 	pytest tests/ --cov=src/mlx_tuner --cov-report=html --cov-report=term
 
+VENV_PYTHON = $(shell if [ -d .venv ]; then echo ".venv/bin/python"; else echo "python"; fi)
+
 train:
 	@echo "Running training..."
-	python -m mlx_tuner.cli train --model SmolLM-135M --data ./data/train.jsonl
+	$(VENV_PYTHON) -m mlx_tuner.cli train --model SmolLM-135M --data ./data/train.jsonl
 
 fuse:
 	@echo "Fusing LoRA adapters..."
-	python -m mlx_tuner.cli fuse --model ./models/smollm --adapter ./adapters
+	$(VENV_PYTHON) -m mlx_tuner.cli fuse --adapter-dir ./adapters
 
 convert:
 	@echo "Converting to GGUF..."
-	python -m mlx_tuner.cli convert --model ./fused --quantization Q4_K_M
+	$(VENV_PYTHON) -m mlx_tuner.cli convert --model ./fused --quantization Q4_K_M
 
 docker-build:
 	@echo "Building Docker image..."
