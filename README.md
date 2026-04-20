@@ -2,9 +2,9 @@
 
 An end-to-end polyglot machine learning stack demonstrating hardware/software co-design for extreme LLM optimization on Apple Silicon. Built to showcase full-stack AI engineering capabilities—from training Python ML pipelines to writing custom Metal GPU shaders, and serving at scale with Go.
 
-## OpenChip Application
+##  Application
 
-This project directly maps to OpenChip's mission to build energy-efficient RISC-V AI accelerators. It demonstrates:
+This app demonstrates:
 
 - **Training large-scale LLMs** → LoRA/QLoRA fine-tuning with 99% memory reduction
 - **Hardware/software co-design** → Custom Metal compute shaders optimized for unified memory
