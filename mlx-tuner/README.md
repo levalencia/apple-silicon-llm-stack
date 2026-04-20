@@ -229,15 +229,49 @@ model.load_adapters("./adapters/adapter.safetensors")
 - 1000 iterations: ~30 minutes
 
 ### "How do I use the trained model?"
+
+**Option 1: CLI (easiest!)**
+```bash
+# With adapters (your fine-tuned version)
+mlx_lm.generate \
+    --model microsoft/Phi-3-mini-4k-instruct \
+    --adapter-path ./adapters \
+    --prompt "What is machine learning?" \
+    --max-tokens 50
+
+# Without adapters (original model)
+mlx_lm.generate \
+    --model microsoft/Phi-3-mini-4k-instruct \
+    --prompt "What is machine learning?"
+```
+
+**Option 2: Python API**
 ```python
 from mlx_lm import load, generate
 
-model, tokenizer = load("microsoft/Phi-3-mini-4k-instruct")
-model.load_adapters("./adapters/adapter.safetensors")
+# Load model with adapters using adapter_path
+model, tokenizer = load(
+    "microsoft/Phi-3-mini-4k-instruct",
+    adapter_path="./adapters"
+)
 
+# Generate!
 response = generate(model, tokenizer, "What's machine learning?")
 print(response)
 ```
+
+**Benchmark Results:**
+```
+=== With LoRA ===
+Generation: 25 tokens, 31.6 tokens-per-sec
+Peak memory: 7.77 GB
+
+=== Without LoRA ===
+Generation: 25 tokens, 32.9 tokens-per-sec  
+Peak memory: 7.75 GB
+```
+
+The LoRA adapters add minimal overhead (~4% slower) but customize the model's output!
 
 ---
 
