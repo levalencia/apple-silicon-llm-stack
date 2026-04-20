@@ -134,8 +134,6 @@ When we say `num_layers: 4`, we mean "add LoRA to the Q and V projections of the
 
 ## The LoRA Math Explained
 
-This is what interviewers want to hear!
-
 ### The Problem
 A full linear layer has weight matrix W of shape (d_in, d_out). For Phi-3-mini:
 - d_in = 3072, d_out = 3072
@@ -402,44 +400,6 @@ The LoRA overhead is ~4% - essentially negligible!
 - 10 iterations: ~30 seconds
 - 100 iterations: ~5 minutes
 - 1000 iterations: ~30 minutes
-
----
-
-## Why This Matters for Your Career
-
-If you want to work at companies like **OpenChip**, **Anthropic**, or **OpenAI** on the AI infrastructure side:
-
-1. This shows you understand the FULL ML stack (not just API calls)
-2. You know how to optimize memory (critical for custom silicon)
-3. You've worked with low-level GPU frameworks (Metal, CUDA)
-4. You've dealt with real training pipelines (not just demos)
-
-Companies building custom AI chips NEED people who understand:
-- How models are trained
-- Where the bottlenecks are
-- How to reduce memory footprint
-- How quantization works
-- The math behind parameter efficiency
-
-This repo proves you can do all of that!
-
-### What I'd Talk About in an Interview
-
-**"Why LoRA instead of full fine-tuning?"**
-> LoRA reduces trainable parameters by 99.98% (from 3.8B to 0.78M). This means:
-> - Lower GPU memory during training (~8GB instead of ~30GB+)
-> - Faster training iterations (fewer parameters to update)
-> - Easy to share/disk (24KB vs multi-GB model files)
-> - Can train multiple specialized versions for different tasks
-
-**"How does LoRA work mathematically?"**
-> LoRA decomposes the weight matrix W into A×B where A is (d_in, r) and B is (r, d_out). With rank r=4, we reduce a 9M parameter matrix to ~24K parameters (99.7% reduction). During inference, we compute W×x + A×B×x.
-
-**"What about Apple Silicon for AI?"**
-> Unified Memory Architecture means CPU and GPU share the same physical RAM. There's no slow PCIe transfer between CPU and GPU. We pass memory pointers, not data. This is conceptually similar to how custom silicon like RISC-V accelerators work - tight coupling between compute and memory.
-
-**"What's next for optimization?"**
-> Quantization (Q4_K_M) would reduce the 3.8B model from ~8GB to ~2GB. Combined with LoRA, you could run a fine-tuned model on edge devices. This is exactly what companies building AI chips optimize for.
 
 ---
 
