@@ -1,166 +1,175 @@
 # MLX Tuner
 
-Production-grade fine-tuning repository for Apple Silicon using the MLX framework. Implements LoRA/QLoRA fine-tuning with GGUF export capabilities.
+Production-grade fine-tuning repository for Apple Silicon using Apple's MLX framework. Implements LoRA/QLoRA fine-tuning with GGUF export.
 
-## Overview
+## Real Results
 
-MLX Tuner provides a modular, testable architecture for fine-tuning large language models on Apple Silicon GPUs. Designed for 24GB M4 Pro unified memory with support for models up to 1.1B parameters.
+```
+Trainable parameters: 0.021% (0.786M/3821.080M)
+Starting training..., iters: 10
+
+Iter 1: Val loss 2.484
+Iter 10: Val loss 2.436
+Train loss 2.586, Learning Rate 1.000e-05, It/sec 3.879, Tokens/sec 164.096, Peak mem 7.886 GB
+
+Saved final weights to adapters/adapters.safetensors.
+```
+
+Trained Phi-3-mini-4k-instruct (3.8B params) on M4 Pro with 7.9GB peak memory!
 
 ## Features & Concepts (GenAI Developer's Glossary)
 
-If you are coming from a high-level API background (e.g., using OpenAI endpoints or HuggingFace `pipeline()`), here is a simple translation of the low-level machine learning concepts used in this repository:
+If you're coming from high-level APIs (OpenAI, HuggingFace `pipeline()`), here's the plain English translation:
 
 | Feature/Concept | Simple Explanation |
-|---------|-------------|
-| **LoRA** | **Low-Rank Adaptation.** Normally, fine-tuning an LLM means changing billions of numbers (weights). This requires massive GPU memory. LoRA "freezes" the original brain and just adds a tiny "sticky note" (a small matrix) on the side to learn new information. It reduces memory usage by 99%. |
-| **LoRA Rank ($r$)** | The "size" of the sticky note. A rank of `8` means it's a small note (fast, low memory, but learns less complex patterns). A rank of `64` means a bigger note. |
-| **LoRA Alpha ($\alpha$)** | A scaling factor (like a volume knob). It dictates how loudly the new "sticky note" overrides the original, frozen model weights. |
-| **Dropout** | A trick to prevent the model from memorizing the training data. During training, it randomly "turns off" (drops out) a percentage of neurons, forcing the model to learn robust patterns rather than relying on a single memorized path. |
-| **RSLoRA** | **Rank-Stabilized LoRA.** A mathematical tweak to standard LoRA. Normally, if you increase the Rank (the sticky note size) too much, the math blows up and ruins the model. RSLoRA fixes the math so you can use massive Ranks safely. |
-| **Quantization** | Think of this as compressing a `.wav` audio file into an `.mp3`. It squashes 16-bit or 32-bit floating-point numbers into 8-bit or 4-bit numbers. It loses a tiny fraction of accuracy but allows massive models to run on consumer hardware. |
-| **QLoRA** | **Quantized LoRA.** The ultimate memory hack: You "zip" (Quantize) the base model so it fits in RAM, and then you train using the tiny LoRA "sticky notes". |
-| **GGUF Export** | GGUF is a file format (like `.zip` or `.mp4`) specifically for LLMs. It packs the model weights, tokenizer, and architecture into a single file that is highly optimized to be loaded quickly by C++ inference engines (like `llama.cpp` or our `metal-inference-core`). |
-| **Protocol-based DI** | **Dependency Injection via Python Protocols.** Instead of using rigid base classes, we use Python's `typing.Protocol` (duck-typing). It simply means: "I don't care what object you pass to my function, as long as it has a `.load()` method." It makes writing unit tests extremely easy. |
+|---------------|------------------|
+| **LoRA** | "Sticky notes on a textbook." Instead of rewriting 3B+ weights, we freeze the model and add small trainable matrices. 99%+ memory reduction. |
+| **LoRA Rank ($r$)** | Size of the sticky note. Rank 8 = small note (fast). Rank 64 = bigger note (more expressiveness). |
+| **LoRA Alpha ($\alpha$)** | Volume knob for the sticky note. Controls how much it influences the base model. |
+| **Quantization** | Converting .wav to .mp3. 32-bit → 4-bit. Massive memory savings with minimal quality loss. |
+| **QLoRA** | Zip the textbook first (quantize), then train sticky notes on top. Fits 70B model in 24GB! |
+| **GGUF** | .zip file for LLMs. Packs weights + tokenizer for fast C++ loading. |
+| **Unified Memory** | CPU + GPU share same RAM. No slow PCIe transfers—just pass pointers. |
+| **Protocol DI** | "I don't care what object you pass, as long as it has `.load()`" - easy testing. |
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install (creates .venv automatically)
 make install
 
-# Run training with default config
-make train
-
-# Fuse adapters into base model
-make fuse
-
-# Convert to GGUF format
-make convert
+# Run training via config file
+mlx_lm.lora -c train_config.yaml
 ```
 
-## Architecture Explained
+### Training Config (train_config.yaml):
 
-For a GenAI software engineer, here is how the data flows through this system:
+```yaml
+model: microsoft/Phi-3-mini-4k-instruct
+train: true
+fine_tune_type: lora
+data: ./data
+num_layers: 4
+batch_size: 1
+iters: 10
+lora_parameters:
+  rank: 4
+  scale: 8
+  dropout: 0.05
+adapter_path: ./adapters
+optimizer: adamw
+```
 
-1. **Input / Config Layer:** You type `make train`. The system reads the `config.py` file, which uses `pydantic-settings` to securely load environment variables (like batch size and LoRA rank).
-2. **Core Modules (The Business Logic):** 
-   - `data/loaders.py` grabs your raw text data (JSONL) and tokenizes it.
-   - `model/loader.py` downloads the base model (e.g., Llama 3) from HuggingFace.
-   - `training/trainer.py` loops over your data, calculates how wrong the model is (the "loss"), and updates the LoRA weights (`lora.py`) to fix the mistakes.
-3. **MLX Backend (The GPU Engine):** Apple's `mlx` framework does all the heavy math. Because of Unified Memory, it does this directly on the Apple Silicon GPU without needing slow memory copies.
-4. **Convert Layer:** Once training is done, `convert/gguf_converter.py` squashes (quantizes) the model and saves it as a `.gguf` file so the C++ engine can run it.
+### Or use the CLI wrapper:
+
+```bash
+.venv/bin/python -m mlx_tuner.cli train \
+    --modelmicrosoft/Phi-3-mini-4k-instruct \
+    --data ./data \
+    --steps 100 \
+    --rank 8 \
+    --layers 16
+```
+
+## Supported Models
+
+Works with any HuggingFace model with chat template:
+
+- `microsoft/Phi-3-mini-4k-instruct` ✅ (tested)
+- `meta-llama/Llama-3.2-1B-Instruct`
+- `HuggingFaceTB/SmolLM-135M` (needs text format, not messages)
+
+## Architecture
 
 ```mermaid
 graph TB
-    subgraph "Input Layer"
-        CLI[CLI / make commands]
-        ENV[Environment Variables]
+    subgraph "Input"
+        CLI[CLI]
+        Config[YAML Config]
     end
     
-    subgraph "Configuration"
-        CFG[config.py]
-        Pydantic[pydantic-settings]
+    subgraph "MLX-LM Pipeline"
+        Load[mlx_lm.load]
+        LoRA[linear_to_lora_layers]
+        Train[mlx_lm.tuner.train]
     end
     
-    subgraph "Core Modules"
-        Loader[model/loader.py]
-        Data[data/loaders.py]
-        Train[training/trainer.py]
-        LoRA[training/lora.py]
-        Convert[convert/gguf_converter.py]
+    subgraph "Output"
+        Adapters[.safetensors]
+        GGUF[.gguf]
     end
     
-    subgraph "MLX Backend"
-        MLX[mlx.core]
-        MLXLM[mlx_lm]
-    end
-    
-    CLI --> CFG
-    ENV --> CFG
-    CFG --> Loader
-    CFG --> Data
-    Loader --> MLXLM
-    Data --> Loader
-    Train --> LoRA
-    LoRA --> MLX
-    Convert --> MLX
+    CLI --> Config
+    Config --> Load
+    Load --> LoRA
+    LoRA --> Train
+    Train --> Adapters
 ```
 
 ## Project Structure
 
 ```
 mlx-tuner/
-├── src/mlx_tuner/          # Main package
-│   ├── __init__.py          # Package exports
-│   ├── config.py            # Configuration management
-│   ├── logging.py          # Structured logging
-│   ├── protocols.py        # Protocol classes (DI)
+├── src/mlx_tuner/
+│   ├── __init__.py
+│   ├── config.py              # Pydantic configs
+│   ├── logging.py            # structlog
+│   ├── protocols.py        # Protocol DI
+│   ├── cli/                # CLI commands
+│   │   ├── train.py
+│   │   ├── fuse.py
+│   │   └── convert.py
 │   ├── data/               # Dataset loaders
-│   │   ├── __init__.py
-│   │   └── loaders.py      # JSONL, CSV loaders
-│   ├── models/             # Model loading
-│   │   ├── __init__.py
-│   │   └── loader.py       # MLX model loader
-│   ├── training/           # Training components
-│   │   ├── __init__.py
-│   │   ├── lora.py         # LoRA implementation
-│   │   └── trainer.py     # Training loop
-│   ├── convert/            # GGUF conversion
-│   │   ├── __init__.py
-│   │   └── gguf_converter.py
-│   └── utils/              # Utilities
-│       ├── __init__.py
-│       └── checkpoint.py   # Checkpoint management
-├── tests/                   # Test suite
-│   ├── test_config.py
-│   ├── test_loaders.py
-│   ├── test_lora.py
-│   └── test_gguf.py
-├── configs/                 # Configuration files
-├── data/                   # Training data
-├── models/                 # Model cache
-├── Dockerfile
+│   ├── models/             # mlx_lm.load
+│   ├── training/           # LoRA implementation
+│   │   ├── lora.py
+│   │   └── trainer.py
+│   └── convert/           # GGUF export
+├── data/                   # Training data (train.jsonl)
+├── adapters/              # Saved LoRA adapters
+├── train_config.yaml       # Training config
 ├── Makefile
-├── pyproject.toml
 └── README.md
 ```
 
-## Configuration
+## Data Format
 
-### Environment Variables
+Each line in `train.jsonl` (text format):
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MODEL__NAME` | `SmolLM-135M` | HuggingFace model name |
-| `MODEL__PATH` | `None` | Local model path |
-| `LORA__RANK` | `8` | LoRA rank (r) |
-| `LORA__ALPHA` | `8` | LoRA alpha |
-| `LORA__DROPOUT` | `0.0` | LoRA dropout |
-| `LORA__SCALE` | `10.0` | LoRA scaling factor |
-| `TRAIN__BATCH_SIZE` | `2` | Training batch size |
-| `TRAIN__STEPS` | `500` | Training steps |
-| `TRAIN__LEARNING_RATE` | `2e-4` | Learning rate |
-| `TRAIN__WARMUP_STEPS` | `50` | Warmup steps |
-| `OUTPUT__ADAPTER_PATH` | `./adapters` | Adapter output path |
-| `OUTPUT__GGUF_PATH` | `./models` | GGUF output path |
+```json
+{"text": "Instruction: Explain ML.\n\nResponse: Machine learning is..."}
+```
+
+Or messages format (for models with chat template):
+
+```json
+{"messages": [{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi!"}]}
+```
+
+## Memory Requirements
+
+| Model | Size | LoRA Rank | Batch | Peak Memory |
+|-------|------|-----------|-------|------------|
+| Phi-3-mini | 3.8B | 4 | 1 | 7.9 GB |
+| Llama-3.2-1B | 1B | 8 | 1 | ~3 GB |
+| SmolLM-135M | 135M | 8 | 2 | ~1 GB |
 
 ## Requirements
 
 - Python 3.11+
-- Apple Silicon Mac (M1/M2/M3/M4)
+- Apple Silicon (M1/M2/M3/M4)
 - 24GB+ unified memory recommended
 - macOS 15+
 
 ## Dependencies
 
 - `mlx` - Apple's ML framework
-- `mlx-lm` - MLX language model utilities
+- `mlx-lm` - Language model utilities (includes LoRA tuner)
 - `transformers` - HuggingFace transformers
-- `peft` - Parameter-efficient fine-tuning
-- `pydantic-settings` - Configuration management
+- `peft` - Parameter-efficient fine-tuning (reference)
+- `pydantic-settings` - Configuration
 - `structlog` - Structured logging
-- `pytest` - Testing framework
-- `ruff` - Linting
+- `pytest` - Testing
 
 ## License
 
